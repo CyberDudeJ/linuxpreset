@@ -6,6 +6,7 @@ Command: ``lp``
 * To run a preset: ``lp run PRESET_URL_HERE``
 
 #### Install lp
+**Make sure to replace "BRANCH" with the branch you would like to install from. E.g. main or 1.0**
 * As non-root user, but with sudo: ```wget https://raw.githubusercontent.com/CyberDudeJ/linuxpreset/BRANCH/lp.py && cp lp.py lp && rm gpm.py && sudo chmod +x lp && sudo mv lp /usr/bin```
 * As root user, without sudo: ```wget https://raw.githubusercontent.com/CyberDudeJ/linuxpreset/BRANCH/lp.py && cp lp.py lp && rm gpm.py && chmod +x lp && mv lp /usr/bin```
 I'll add a better and faster installation script later on.
