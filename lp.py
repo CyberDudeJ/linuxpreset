@@ -29,5 +29,8 @@ def main(): # Define main function
     else:
         print(f"[WARN] Invalid option: {arg1}, Now Exiting")
 
-if __name__ == "__main__":
-    main()
+if platform.system() == "Linux":
+    if __name__ == "__main__":
+        main()
+else:
+    print("[WARN] lp can only be run on linux-based systems. Now exiting."
