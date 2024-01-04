@@ -35,6 +35,11 @@ def fetch_json_data(url):
         exit(1)
 
 
+# json validation func
+def validate_json_data(data):
+    return isinstance(data, list) and all(isinstance(v, str) for v in data)
+
+
 def main():  # Define main function
     if platform.system() != "Linux":  # Check if running on Linux, if not, exit.
         print("[WARN] lp can only be run on linux-based systems. Now exiting.")
@@ -54,11 +59,17 @@ def main():  # Define main function
     url = sys.argv[1]
 
     # Extract values list
-    values_list = list(fetch_json_data(url).values())
+    values_list = fetch_json_data(url)
+
+    # Validate data
+    if not validate_json_data(values_list):
+        print("[WARN] Invalid json format, should be list[str]")
+        exit(1)
 
     print(
-        f"[INFO] Selected Preset: {values_list}\n"
-        "[INFO] Some presets require root. Errors may occur if lp is not run as root"
+        "[INFO] Selected Preset:\n"
+        + "\n".join(f"  {v!r}" for v in values_list)
+        + "\n[INFO] Some presets require root. Errors may occur if lp is not run as root"
     )
     continueBoolean = input("Would you like to continue? [y/n]")
     if not any(continueBoolean == y for y in ["y", "Y"]):
