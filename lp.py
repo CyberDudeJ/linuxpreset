@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 
+import argparse
+import json
+from pathlib import Path
 import platform
 import requests
 import subprocess
-import sys
 
 
 # Define command execution function
-def exec_cmd(command):
+def exec_cmd(command: str) -> int:
     try:
         return subprocess.run(command.split()).returncode
     except Exception as e:
@@ -35,9 +37,24 @@ def fetch_json_data(url):
         exit(1)
 
 
+# read preset from local json file
+def read_json_data(path):
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except:
+        exit(1)
+
+
 # json validation func
 def validate_json_data(data):
     return isinstance(data, list) and all(isinstance(v, str) for v in data)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("url", metavar="PRESET_URL")
+    return parser.parse_args()
 
 
 def main():  # Define main function
@@ -45,21 +62,13 @@ def main():  # Define main function
         print("[WARN] lp can only be run on linux-based systems. Now exiting.")
         exit(1)
 
-    # Check if the correct number of arguments has been defined by the user
-    if len(sys.argv) != 2:
-        print("[WARN] lp usage: {} [PRESET_URL]".format(sys.argv[0]))
-        exit(1)
-
-    # Check value of arg1 and adjust argument parsing
-    if any(sys.argv[1] == help_opt for help_opt in ["-h", "--help"]):
-        print("Help coming soon idk")
-        exit(0)
-
-    # Extract the arguments
-    url = sys.argv[1]
+    args = parse_args()
 
     # Extract values list
-    values_list = fetch_json_data(url)
+    if Path(args.url).exists():
+        values_list = read_json_data(args.url)
+    else:
+        values_list = fetch_json_data(args.url)
 
     # Validate data
     if not validate_json_data(values_list):
