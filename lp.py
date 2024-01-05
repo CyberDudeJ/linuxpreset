@@ -2,10 +2,18 @@
 
 import argparse
 import json
+import logging
 from pathlib import Path
-import platform
-import requests
-import subprocess
+import sys, requests, subprocess, platform
+from typing import Any
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s %(levelname)-.4s] %(message)s",
+    datefmt="%H:%M:%S",
+)
+log = logging.getLogger(__name__)
 
 
 # Define command execution function
@@ -13,7 +21,7 @@ def exec_cmd(command: str) -> int:
     try:
         return subprocess.run(command.split()).returncode
     except Exception as e:
-        print(e)
+        log.error(e)
         return -1
 
 
@@ -27,18 +35,18 @@ def exec_cmd(command: str) -> int:
 
 
 # Define fetch json file function
-def fetch_json_data(url):
+def fetch_json_data(url) -> Any:
     try:
         response = requests.get(url)
         response.raise_for_status()  # Raise an HTTPError for bad responses
         return response.json()
     except requests.exceptions.RequestException as e:
-        print(f"[WARN] Error fetching JSON data: {e}, Now exiting.")
-        exit(1)
+        log.error("Error fetching JSON data: %s, Now exiting.", e)
+        sys.exit(1)
 
 
 # read preset from local json file
-def read_json_data(path):
+def read_json_data(path: Path) -> Any:
     try:
         with open(path) as f:
             return json.load(f)
@@ -47,11 +55,11 @@ def read_json_data(path):
 
 
 # json validation func
-def validate_json_data(data):
+def validate_json_data(data) -> bool:
     return isinstance(data, list) and all(isinstance(v, str) for v in data)
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("url", metavar="PRESET_URL")
     return parser.parse_args()
@@ -59,7 +67,7 @@ def parse_args():
 
 def main():  # Define main function
     if platform.system() != "Linux":  # Check if running on Linux, if not, exit.
-        print("[WARN] lp can only be run on linux-based systems. Now exiting.")
+        log.error("lp can only be run on linux-based systems. Now exiting.")
         exit(1)
 
     args = parse_args()
@@ -72,26 +80,26 @@ def main():  # Define main function
 
     # Validate data
     if not validate_json_data(values_list):
-        print("[WARN] Invalid json format, should be list[str]")
+        log.error("Invalid json format, should be list[str]")
         exit(1)
 
-    print(
-        "[INFO] Selected Preset:\n"
+    log.info(
+        "Selected Preset:\n"
         + "\n".join(f"  {v!r}" for v in values_list)
-        + "\n[INFO] Some presets require root. Errors may occur if lp is not run as root"
+        + "\nSome presets require root. Errors may occur if lp is not run as root"
     )
     continueBoolean = input("Would you like to continue? [y/n]")
     if not any(continueBoolean == y for y in ["y", "Y"]):
-        print(f"[WARN] {continueBoolean} was selected. Aborting preset and exiting.")
+        log.info(f"{continueBoolean!r} was selected. Aborting preset and exiting.")
         exit(0)
 
-    print("[INFO] This may take some time depending on the preset. Please wait")
+    log.info("This may take some time depending on the preset. Please wait")
     for cmd in values_list:
-        print(f"{cmd!r} running...")
+        log.info(f"{cmd!r} running...")
         status = exec_cmd(cmd)
         if status != 0:
-            print(f"[WARN] cmd {cmd!r} failed. Exit status {status}")
-    print("[INFO] lp has finished running the preset. Now exiting.")
+            log.warning(f"cmd {cmd!r} failed. Exit status {status}")
+    log.info("lp has finished running the preset. Now exiting.")
 
 
 if __name__ == "__main__":
