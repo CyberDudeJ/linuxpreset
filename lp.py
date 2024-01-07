@@ -29,7 +29,7 @@ def exec_cmd(command: str) -> int:
 def fetch_preset(url: str) -> Any:
     try:
         response = requests.get(url)
-        response.raise_for_status()  # Raise an HTTPError for bad responses
+        response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
         log.error("Error fetching JSON data: %s, Now exiting.", e)
@@ -49,18 +49,18 @@ def validate_json_data(data: Any) -> bool:
     return isinstance(data, list) and all(isinstance(v, str) for v in data)
 
 
+def run_preset(preset: List[str]):
+    for i, cmd in enumerate(preset, start=1):
+        log.info(f"[{i}/{len(preset)}] {cmd!r} running...")
+        status = exec_cmd(cmd)
+        if status != 0:
+            log.warning(f"cmd {cmd!r} failed. Exit status {status}")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("url", metavar="PRESET_URL")
     return parser.parse_args()
-
-
-def run_preset(preset: List[str]):
-    for i, cmd in enumerate(preset):
-        log.info(f"[{i+1}/{len(preset)}] {cmd!r} running...")
-        status = exec_cmd(cmd)
-        if status != 0:
-            log.warning(f"cmd {cmd!r} failed. Exit status {status}")
 
 
 def main():
