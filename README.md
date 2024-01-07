@@ -16,10 +16,8 @@ lp uses ``JSON`` to run commands. For example, command 1 would be called "1", co
 **Example:** - Make sure to add ``-y`` if you're using apt.
 ```
 [
-  {
-    "1": "apt-get install btop -y",
-    "2": "apt-get install htop -y""
-  }
+  "apt-get install btop -y",
+  "apt-get install htop -y"
 ]
 ```
 Remember, if you're using github to host your preset file, you'll need the raw file url.

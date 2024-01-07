@@ -1,93 +1,98 @@
 #!/usr/bin/env python3
 
-import sys, os, requests, subprocess, platform
+import argparse
+import json
+import logging
+from pathlib import Path
+import platform
+import requests
+import subprocess as sp
+from typing import Any, List
 
-# Define global variables
-arg1 = None
-arg2 = None
 
-# Define command execution function
-def exec_cmd(command):
-    stream = os.popen(command)
-    output = stream.read()
-    output
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s %(levelname)-.4s] %(message)s",
+    datefmt="%H:%M:%S",
+)
+log = logging.getLogger(__name__)
 
-    return output
 
-# Define check if cmd exists function
-def command_exists(command):
+def exec_cmd(command: str) -> int:
     try:
-        subprocess.check_output(['which', command])
-        return True
-    except subprocess.CalledProcessError:
-        return False
+        return sp.run(command.split()).returncode
+    except Exception as e:
+        log.error(e)
+        return -1
 
-# Define fetch json file function
-def fetch_json_data(url):
+
+def fetch_preset(url: str) -> Any:
     try:
         response = requests.get(url)
-        response.raise_for_status() # Raise an HTTPError for bad responses
+        response.raise_for_status()
         return response.json()
-    except requests.exceptions.RequestExceptions as e:
-        print(f"[WARN] Error fetching JSON data {e}, Now exiting.")
-        sys.exit(1)
+    except requests.exceptions.RequestException as e:
+        log.error("Error fetching JSON data: %s, Now exiting.", e)
+        exit(1)
 
-# Define extract values function
-def extract_values(json_data):
-    values_list= []
 
-    for item in json_data:
-        for key, value in item.items():
-            values_list.append(value)
+def read_preset(path: str) -> Any:
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except Exception as e:
+        log.error("Error reading JSON data: %s", e)
+        exit(1)
 
-    return values_list
 
-def main(): # Define main function
-    global arg1, arg2 # Declare arg1 + arg2 as global variables
+def validate_json_data(data: Any) -> bool:
+    return isinstance(data, list) and all(isinstance(v, str) for v in data)
 
-    # Check if the correct number of arguments has been defined by the user
-    if len(sys.argv) < 2:
-        print("[WARN] lp usage: {} [arg1] [arg2]".format(sys.argv[0]))
-    
-    # Extract the arguments
-    arg1 = sys.argv[1] if len(sys.argv) > 1 else None
-    arg2 = sys.argv[2] if len(sys.argv) > 1 else None
 
-    # Check value of arg1 and adjust argument parsing
-    if arg1 in ["h", "help", "?"]:
-        print("Help coming soon idk")
-    elif arg1 in ["r", "run"]:
-        if len(sys.argv) > 2: # Check if arg2 exists
-            arg2 = sys.argv[2] # begin script after getting arg2 again
-            json_data = fetch_json_data(arg2)
+def run_preset(preset: List[str]):
+    for i, cmd in enumerate(preset, start=1):
+        log.info(f"[{i}/{len(preset)}] {cmd!r} running...")
+        status = exec_cmd(cmd)
+        if status != 0:
+            log.warning(f"cmd {cmd!r} failed. Exit status {status}")
 
-            if json_data is not None:
-                values_list = extract_values(json_data)
-                print("[INFO] Selected Preset:", values_list)
-                print("[INFO] Some presets require root. Errors may occur if lp is not run as root")
-                index = 0
-                continueBoolean = input("Would you like to continue? [y/n]")
-                if continueBoolean in ["y", "Y"]:
-                    print("[INFO] This may take some time depending on the preset. Please wait")
-                    while index < len(values_list):
-                        current_entry = values_list[index]
-                        # exec script
-                        exec_cmd(current_entry)
-                        # Increment the index for the next iteration
-                        index += 1
-                elif continueBoolean in ["n", "N"]:
-                    print(f"[WARN] {continueBoolean} was selected. Aborting preset and exiting.")
-                else:
-                    print("[WARN] Please select a valid option. Aborting preset and exiting.")
-                print("[INFO] lp has finished running the preset. Now exiting.")
-        else:
-            print(f"[WARN] arg2 is required for {arg1} to properly function. Now exiting.")
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("url", metavar="PRESET_URL")
+    return parser.parse_args()
+
+
+def main():
+    if platform.system() != "Linux":
+        log.error("lp can only be run on linux-based systems. Now exiting.")
+        exit(1)
+
+    args = parse_args()
+    if Path(args.url).exists():
+        preset = read_preset(args.url)
     else:
-        print(f"[WARN] Invalid option: {arg1}, Now Exiting")
+        preset = fetch_preset(args.url)
 
-if platform.system() == "Linux": # Check if running on Linux, if not, exit.
-    if __name__ == "__main__":
-        main()
-else:
-    print("[WARN] lp can only be run on linux-based systems. Now exiting.")
+    if not validate_json_data(preset):
+        log.error("Invalid json format, should be list[str]")
+        exit(1)
 
+    log.info(
+        "Selected Preset:\n"
+        + "\n".join(f"  {v!r}" for v in preset)
+        + "\nSome presets require root. Errors may occur if lp is not run as root"
+    )
+
+    resp = input("Would you like to continue? [y/n]")
+    if not any(resp == y for y in ["y", "Y"]):
+        log.info(f"{resp!r} was selected. Aborting preset and exiting.")
+        exit(0)
+
+    log.info("This may take some time depending on the preset. Please wait")
+    run_preset(preset)
+    log.info("lp has finished running the preset. Now exiting.")
+
+
+if __name__ == "__main__":
+    main()
