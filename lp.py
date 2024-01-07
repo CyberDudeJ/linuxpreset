@@ -45,6 +45,31 @@ def read_preset(path: str) -> Any:
         exit(1)
 
 
+def run_preset_async(preset: List[str]):
+    import asyncio
+
+    async def exec_cmd_async(command: str, i: int):
+        try:
+            process = await asyncio.create_subprocess_shell(command)
+            return i, await process.wait()
+        except Exception as e:
+            log.error(e)
+            return i, -1
+
+    async def run_():
+        task_ids = set(range(1, len(preset) + 1))
+        tasks = [exec_cmd_async(cmd, i) for i, cmd in enumerate(preset, start=1)]
+        for future in asyncio.as_completed(tasks):
+            i, returncode = await future
+            task_ids.discard(i)
+            left = len(preset) - len(task_ids)
+            log.info(
+                f"[{left}/{len(preset)}] {preset[i-1]!r} done with return code {returncode}"
+            )
+
+    asyncio.run(run_())
+
+
 def validate_json_data(data: Any) -> bool:
     return isinstance(data, list) and all(isinstance(v, str) for v in data)
 
@@ -60,6 +85,13 @@ def run_preset(preset: List[str]):
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("url", metavar="PRESET_URL")
+    parser.add_argument(
+        "-a",
+        "--async",
+        action="store_true",
+        dest="is_async",
+        help="run preset asynchronously",
+    )
     return parser.parse_args()
 
 
@@ -90,7 +122,10 @@ def main():
         exit(0)
 
     log.info("This may take some time depending on the preset. Please wait")
-    run_preset(preset)
+    if args.is_async:
+        run_preset_async(preset)
+    else:
+        run_preset(preset)
     log.info("lp has finished running the preset. Now exiting.")
 
 
